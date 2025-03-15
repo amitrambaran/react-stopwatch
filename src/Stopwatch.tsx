@@ -92,7 +92,7 @@ function Stopwatch({ initialSeconds }: StopwatchProps) {
 const Lap = React.memo(({ index, lap, onDelete }: LapProps) => {
   return (
     <div className="stopwatch-lap">
-      <strong>{index}</strong>/ {formattedSeconds(lap)}
+      <strong>{index + 1}</strong>/ {formattedSeconds(lap)}
       <button onClick={() => onDelete(index)}> X </button>
     </div>
   );
