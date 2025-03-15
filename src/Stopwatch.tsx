@@ -1,105 +1,101 @@
-import * as React from "react";
-import * as ReactDOM from "react-dom";
-import { Component, ClassAttributes } from "react";
-const formattedSeconds = (sec: number) =>
-  Math.floor(sec / 60) + ":" + ("0" + (sec % 60)).slice(-2);
-interface StopwatchProps extends ClassAttributes<Stopwatch> {
+import React, { useRef, useState, useCallback } from "react";
+
+interface StopwatchProps {
   initialSeconds: number;
 }
-class Stopwatch extends Component<StopwatchProps, any> {
-  incrementer: any;
-  laps: any[];
-  constructor(props: StopwatchProps) {
-    super(props);
-    this.state = {
-      secondsElapsed: props.initialSeconds,
-      lastClearedIncrementer: null,
-    };
-    this.laps = [];
-  }
-  handleStartClick() {
-    this.incrementer = setInterval(
-      () =>
-        this.setState({
-          secondsElapsed: this.state.secondsElapsed + 1,
-        }),
-      1000
-    );
-  }
-  handleStopClick() {
-    clearInterval(this.incrementer);
-    this.setState({
-      lastClearedIncrementer: this.incrementer,
-    });
-  }
 
-  handleResetClick() {
-    clearInterval(this.incrementer);
-    (this.laps = []),
-      this.setState({
-        secondsElapsed: 0,
-      });
-  }
-  handleLabClick() {
-    this.laps = this.laps.concat([this.state.secondsElapsed]);
-    this.forceUpdate();
-  }
-  handleDeleteClick(index: number) {
-    return () => this.laps.splice(index, 1);
-  }
-  render() {
-    const { secondsElapsed, lastClearedIncrementer } = this.state;
-    return (
-      <div className="stopwatch">
-        <h1 className="stopwatch-timer">{formattedSeconds(secondsElapsed)}</h1>
-        {secondsElapsed === 0 || this.incrementer === lastClearedIncrementer ? (
-          <button
-            type="button"
-            className="start-btn"
-            onClick={this.handleStartClick}
-          >
-            start
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="stop-btn"
-            onClick={this.handleStopClick}
-          >
-            stop
-          </button>
-        )}
-        {secondsElapsed !== 0 && this.incrementer !== lastClearedIncrementer ? (
-          <button type="button" onClick={this.handleLabClick}>
-            lap
-          </button>
-        ) : null}
-        {secondsElapsed !== 0 && this.incrementer === lastClearedIncrementer ? (
-          <button type="button" onClick={this.handleResetClick}>
-            reset
-          </button>
-        ) : null}
-        <div className="stopwatch-laps">
-          {this.laps &&
-            this.laps.map((lap, i) => (
-              <Lap
-                index={i + 1}
-                lap={lap}
-                onDelete={this.handleDeleteClick(i)}
-              />
-            ))}
-        </div>
-      </div>
-    );
-  }
+interface LapProps {
+  index: number;
+  lap: number;
+  onDelete: (index: number) => void;
 }
-const Lap = (props: { index: number; lap: number; onDelete: () => {} }) => (
-  <div key={props.index} className="stopwatch-lap">
-    <strong>{props.index}</strong>/ {formattedSeconds(props.lap)}{" "}
-    <button onClick={props.onDelete}> X </button>
-  </div>
-);
-ReactDOM.render(
-  <Stopwatch initialSeconds={0} />,
-  document.getElementById("content")
-);
+
+function formattedSeconds(seconds: number) {
+  return Math.floor(seconds / 60) + ":" + ("0" + (seconds % 60)).slice(-2);
+}
+
+function Stopwatch({ initialSeconds }: StopwatchProps) {
+  const [secondsElapsed, setSecondsElapsed] = useState(initialSeconds);
+  const [lastClearedIncrementer, setLastClearedIncrementer] = useState<
+    number | undefined
+  >(undefined);
+  const [laps, setLaps] = useState<number[]>([]);
+
+  const timerInterval = useRef<number | undefined>(undefined);
+
+  const handleStartClick = useCallback(() => {
+    timerInterval.current = setInterval(() => {
+      setSecondsElapsed((prevSeconds) => prevSeconds + 1);
+    }, 1000);
+  }, []);
+
+  const handleStopClick = useCallback(() => {
+    clearInterval(timerInterval.current);
+    setLastClearedIncrementer(timerInterval.current);
+  }, []);
+
+  const handleResetClick = useCallback(() => {
+    clearInterval(timerInterval.current);
+    setLaps([]);
+    setSecondsElapsed(0);
+  }, []);
+
+  const handleLapClick = useCallback(() => {
+    setLaps((prevLaps) => [...prevLaps, secondsElapsed]);
+  }, [secondsElapsed]);
+
+  const handleDeleteClick = useCallback((index: number) => {
+    setLaps((prevLaps) => prevLaps.filter((_, i) => index !== i));
+  }, []);
+
+  return (
+    <div className="stopwatch">
+      <h1 className="stopwatch-timer">{formattedSeconds(secondsElapsed)}</h1>
+      {secondsElapsed === 0 ||
+      timerInterval.current === lastClearedIncrementer ? (
+        <button className="start-btn" onClick={handleStartClick}>
+          start
+        </button>
+      ) : (
+        <button className="stop-btn" type="button" onClick={handleStopClick}>
+          stop
+        </button>
+      )}
+      {secondsElapsed !== 0 &&
+      timerInterval.current !== lastClearedIncrementer ? (
+        <button className="lap-btn" onClick={handleLapClick}>
+          lap
+        </button>
+      ) : null}
+      {secondsElapsed !== 0 &&
+      timerInterval.current === lastClearedIncrementer ? (
+        <button className="reset-btn" onClick={handleResetClick}>
+          reset
+        </button>
+      ) : null}
+      <div className="stopwatch-laps">
+        {laps?.map((lap: number, index: number) => {
+          return (
+            <Lap
+              index={index}
+              key={index}
+              lap={lap}
+              onDelete={handleDeleteClick}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const Lap = React.memo(({ index, lap, onDelete }: LapProps) => {
+  return (
+    <div className="stopwatch-lap">
+      <strong>{index}</strong>/ {formattedSeconds(lap)}
+      <button onClick={() => onDelete(index)}> X </button>
+    </div>
+  );
+});
+
+export default Stopwatch;
